@@ -1,1 +1,1 @@
-# Recaptcha Session Hijacker
+# Recaptcha v2 - Session Hijacker
