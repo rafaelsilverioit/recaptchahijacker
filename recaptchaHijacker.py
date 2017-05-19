@@ -13,10 +13,6 @@ import os
 class MyHandler(CGIHTTPServer.CGIHTTPRequestHandler, object):
   # Tries to read a key parameter
   def do_GET(self):
-#    self.send_response(200, 'OK')
-#    self.send_header('Content-type', 'html')
-#    self.end_headers()
-
     try:
       query = urlparse(self.path).query
       queryComponents = dict(qc.split("=") for qc in query.split("&"))
@@ -45,6 +41,10 @@ class MyHandler(CGIHTTPServer.CGIHTTPRequestHandler, object):
 
       self.wfile.write(recaptcha)
     except:
+      self.send_response(400, 'Bad request')
+      self.send_header('Content-type', 'text/html')
+      self.end_headers()
+
       self.wfile.write("<h1>400 - Bad request</h1>")
 
 # Responsible for starting a HTTPServer used to host the hijacked session
