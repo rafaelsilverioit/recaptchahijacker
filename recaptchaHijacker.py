@@ -8,6 +8,7 @@ import sys, getopt
 import webbrowser
 import time
 import os
+import subprocess
 
 # Overrides do_GET from CGIHTTPRequestHandler for handle GET requests
 class MyHandler(CGIHTTPServer.CGIHTTPRequestHandler, object):
@@ -18,26 +19,15 @@ class MyHandler(CGIHTTPServer.CGIHTTPRequestHandler, object):
       queryComponents = dict(qc.split("=") for qc in query.split("&"))
       key = queryComponents["key"]
 
-      if(".jpg" not in key):
-          self.send_response(200, 'OK')
-          self.send_header('Content-type', 'text/html')
-          self.end_headers()
+      self.send_response(200, 'OK')
+      self.send_header('Content-type', 'text/html')
+      self.end_headers()
 
-          # Since we know the key, we can build our session and render on user browser
-          recaptcha = '<!DOCTYPE html><html lang="en"><head><title>Recaptcha v2 - Hijacker</title><script>'
-          recaptcha += 'function onload() {document.querySelectorAll("textarea")[0].style = "display: block; width: 100%; height: 100%;";}</script>'
-          recaptcha += '</head><body onload="onload()"><form action="" method="post"><div class="g-recaptcha" data-sitekey="' + key + '"></div>'
-          recaptcha += '</form><script src="https://www.google.com/recaptcha/api.js"></script></body></html>'
-      else:
-         self.send_response(200, 'OK')
-         self.send_header('Content-type', 'text/html')
-         self.end_headers()
-
-         recaptcha = ''
-         # Since we have an standard image, just show it on user browser
-         #recaptcha = '<!DOCTYPE html><html lang="en"><head><title>Recaptcha v2 - Hijacker</title></head><body><img src="..' + key + '"></body></html>'
-	 with open(key, 'r') as f:
-         	reacaptcha += f.read()
+      # Since we know the key, we can build our session and render on user browser
+      recaptcha = '<!DOCTYPE html><html lang="en"><head><title>Recaptcha v2 - Hijacker</title><script>'
+      recaptcha += 'function onload() {document.querySelectorAll("textarea")[0].style = "display: block; width: 100%; height: 100%;";}</script>'
+      recaptcha += '</head><body onload="onload()"><form action="" method="post"><div class="g-recaptcha" data-sitekey="' + key + '"></div>'
+      recaptcha += '</form><script src="https://www.google.com/recaptcha/api.js"></script></body></html>'
 
       self.wfile.write(recaptcha)
     except:
@@ -46,6 +36,14 @@ class MyHandler(CGIHTTPServer.CGIHTTPRequestHandler, object):
       self.end_headers()
 
       self.wfile.write("<h1>400 - Bad request</h1>")
+
+# Responsible for showing EOG with the image given by the user.
+class NormalCaptchaSolver():
+  def __init__(self):
+    pass
+
+  def show(self, src):
+    p = subprocess.Popen(['/usr/bin/eog', os.path.expanduser(src)])
 
 # Responsible for starting a HTTPServer used to host the hijacked session
 class RecaptchaServer():
@@ -65,11 +63,11 @@ class RecaptchaServer():
 
 # Responsible for hijacking user session
 class RecaptchaHijacker():
-  KEY = None
+  KEY  = None
   PORT = None
 
   def __init__(self, port=None):
-    self.KEY = None
+    self.KEY  = None
     self.PORT = port
 
   # Read recaptcha token from file
@@ -78,9 +76,10 @@ class RecaptchaHijacker():
       self.KEY = inFile
       return
 
-    with open(inFile, 'r') as f:
-      self.KEY = f.readline()
-      # self.KEY = inFile
+    raise Exception("Input file is not an jpg image: '" + inFile + "'")
+
+  def setKey(self, key):
+    self.KEY = key
 
   # Starts RecaptchaServer
   def start_server(self):
@@ -90,19 +89,26 @@ class RecaptchaHijacker():
 
   # Open Chrome browser to solve recaptcha
   def hijack_session(self):
-    url = "http://127.0.0.1:8000/?key=" + self.KEY
+    url         = "http://127.0.0.1:8000/?key=" + self.KEY
     chrome_path = "/usr/bin/google-chrome --disable-web-security --allow-file-access-from-files --allow-file-access %s"
     webbrowser.get(chrome_path).open(url)
 
   # Start processes: runs RecaptchaServer, wait for 3 seconds and then hijacks the captcha session.
   def hijack(self):
-    methods = [self.start_server, self.hijack_session]
+    if ".jpg" in self.KEY:
+      captcha = NormalCaptchaSolver()
+      captcha.show(self.KEY)
+      return
+
+    methods   = [self.start_server, self.hijack_session]
     processes = []
 
     for method in methods:
       time.sleep(3)
+
       p = Process(target=method)
       p.start()
+
       processes.append(p)
 
     return processes
@@ -115,28 +121,43 @@ class RecaptchaHijacker():
 # Runs the program
 if __name__ == "__main__":
   ifile = ''
+  key   = ''
+  url   = ''
 
+  #
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "hi", ["ifile="])
+    opts, args = getopt.getopt(sys.argv[1:], "fku", ["file=", "key=", "url="])
   except:
-    print 'Invalid argument'
+    print 'Invalid arguments.'
     sys.exit(2)
 
   if len(opts) < 1:
-    print 'Invalid argument'
+    print 'No arguments given.'
+    print 'Either use --file for an standard captcha or --key for a recaptcha token along with its domain url (--url).'
     sys.exit(2)
 
   for opt, arg in opts:
-    if opt in ("-i", "--ifile"):
+    if opt in ("-f", "--file"):
       ifile = arg
+    elif opt in ("-k", "--key"):
+      key = arg
+    elif opt in ("-u", "--url"):
+      url = arg
     else:
-      print 'Invalid argument'
+      print 'Could not parse arguments.'
       sys.exit(2)
 
   solver = RecaptchaHijacker()
-  solver.readKey(ifile)
+
+  # If we have an key, then we read it, otherwise we just set it directly, so we can check if it's a file or not.
+  if len(key) <= 0:
+    solver.readKey(ifile)
+  else:
+    solver.setKey(key)
+
   solver.hijack()
 
+  # Waits 10 seconds before finishing all processes started in current session.
   time.sleep(10)
 
   solver.stop()
