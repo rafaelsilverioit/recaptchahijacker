@@ -42,8 +42,13 @@ class NormalCaptchaSolver():
   def __init__(self):
     pass
 
-  def show(self, src):
-    p = subprocess.Popen(['/usr/bin/timeout', '10s', '/usr/bin/eog', os.path.expanduser(src)])
+  def show(self, src, time):
+    default = '10s'
+
+    if(len(time) > 0):
+      default = time + "s"
+
+    p = subprocess.Popen(['/usr/bin/timeout', default, '/usr/bin/eog', os.path.expanduser(src)])
 
 # Responsible for starting a HTTPServer used to host the hijacked session
 class RecaptchaServer():
@@ -94,10 +99,10 @@ class RecaptchaHijacker():
     webbrowser.get(chrome_path).open(url)
 
   # Start processes: runs RecaptchaServer, wait for 3 seconds and then hijacks the captcha session.
-  def hijack(self):
+  def hijack(self, time=None):
     if ".jpg" in self.KEY:
       captcha = NormalCaptchaSolver()
-      captcha.show(self.KEY)
+      captcha.show(self.KEY, time)
       return
 
     methods   = [self.start_server, self.hijack_session]
@@ -123,10 +128,10 @@ if __name__ == "__main__":
   ifile = ''
   key   = ''
   url   = ''
+  time  = ''
 
-  #
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "fku", ["file=", "key=", "url="])
+    opts, args = getopt.getopt(sys.argv[1:], "fkut", ["file=", "key=", "url=", "time="])
   except:
     print 'Invalid arguments.'
     sys.exit(2)
@@ -143,6 +148,8 @@ if __name__ == "__main__":
       key = arg
     elif opt in ("-u", "--url"):
       url = arg
+    elif opt in ("-t", "--time"):
+      time = arg
     else:
       print 'Could not parse arguments.'
       sys.exit(2)
@@ -155,7 +162,7 @@ if __name__ == "__main__":
   else:
     solver.setKey(key)
 
-  solver.hijack()
+  solver.hijack(time)
 
   # Waits 10 seconds before finishing all processes started in current session.
   time.sleep(10)
