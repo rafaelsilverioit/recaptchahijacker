@@ -43,7 +43,7 @@ class NormalCaptchaSolver():
     pass
 
   def show(self, src):
-    p = subprocess.Popen(['/usr/bin/eog', os.path.expanduser(src)])
+    p = subprocess.Popen(['timeout 10s /usr/bin/eog', os.path.expanduser(src)])
 
 # Responsible for starting a HTTPServer used to host the hijacked session
 class RecaptchaServer():
