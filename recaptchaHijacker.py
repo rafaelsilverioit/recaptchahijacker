@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+'''
+  A simple hijacker for recaptcha v2 and also normal captchas.
+  (It was built for an development environment, where you don't want to waste money solving captchas. On production environments, I always solve it through some services like death by captcha.)
+  
+  It takes as parameters either the image (.jpg) to be shown on Chrome, or a file
+  that contains the recaptcha v2 site key parameter.
+  
+  @author: Rafael Silvério Amaral
+  @email:  rafael.silverio.it@gmail.com
+  @github: https://github.com/rafaelsilverioit
+'''
+
 from urlparse import urlparse
 from multiprocessing import Process
 import BaseHTTPServer
@@ -10,6 +22,10 @@ import time
 import os
 import subprocess
 
+''' 
+  Software requirements: Google Chrome, EOG and Python.
+  Python libraries: urlparse, webbrowser.
+'''
 # Overrides do_GET from CGIHTTPRequestHandler for handle GET requests
 class MyHandler(CGIHTTPServer.CGIHTTPRequestHandler, object):
   # Tries to read a key parameter
@@ -33,9 +49,9 @@ class MyHandler(CGIHTTPServer.CGIHTTPRequestHandler, object):
     except:
       self.send_response(400, 'Bad request')
       self.send_header('Content-type', 'text/html')
-      self.end_headers()
-
       self.wfile.write("<h1>400 - Bad request</h1>")
+      
+      self.end_headers()
 
 # Responsible for showing EOG with the image given by the user.
 class NormalCaptchaSolver():
